@@ -1,7 +1,8 @@
+#!/usr/bin/python
 # PlayScraper
 
 import argparse
-from bs4 import BeautifulSoup
+#from bs4 import BeautifulSoup
 import requests
 import re
 import sqlite3
@@ -93,14 +94,15 @@ def CurlReq(database, Category, Collection, index, apps_per_query, cursor):
             #hLink = urllib2.urlopen(tmp)
             print('Getting the %s' % details_url)
             # get the response
-            resp_detail = hdetails.text.encode('utf-8')
+            resp_detail = hdetails.text
             #print resp_detail
 
             #resp_detail = BeautifulSoup (resp_detail.decode('utf-8', 'ignore'))
 
             _title = re.search('class="document-title" itemprop="name"> <div>(.+?)</div>', resp_detail, re.DOTALL|re.UNICODE)
-            print('Title : %s' % _title.group(1).decode('utf-8'))
-            cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'title', _title.group(1).decode('utf-8')))
+            #print('Title : %s' % _title.group(1).encode('utf-8'))
+            print('Title : %s' % _title.group(1).encode('ascii','ignore'))
+            cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'title', _title.group(1).encode('ascii','ignore')))
             _author = re.search('<span itemprop="name">(.+?)</span>', resp_detail, re.DOTALL|re.UNICODE)
             print('Author : %s' % _author.group(1))
             cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'author', _author.group(1)))
