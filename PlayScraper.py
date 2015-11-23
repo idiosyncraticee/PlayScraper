@@ -95,6 +95,8 @@ def CurlReq(database, Category, Collection, index, apps_per_query, cursor):
             print('Getting the %s' % details_url)
             # get the response
             resp_detail = hdetails.text
+
+            #FOR DEBUGGING, PRINT THE SOURCE OUT
             #print resp_detail
 
             #resp_detail = BeautifulSoup (resp_detail.decode('utf-8', 'ignore'))
@@ -103,23 +105,36 @@ def CurlReq(database, Category, Collection, index, apps_per_query, cursor):
             #print('Title : %s' % _title.group(1).encode('utf-8'))
             print('Title : %s' % _title.group(1).encode('ascii','ignore'))
             cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'title', _title.group(1).encode('ascii','ignore')))
+
             _author = re.search('<span itemprop="name">(.+?)</span>', resp_detail, re.DOTALL|re.UNICODE)
             print('Author : %s' % _author.group(1))
             cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'author', _author.group(1)))
+
             _author_url = re.search('<a class="document-subtitle primary" href="(.+?)"', resp_detail, re.DOTALL|re.UNICODE)
             print('Author URL : resp_detail://play.google.com%s' % _author_url.group(1))
             cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'author_url', _author_url.group(1)))
+
             _dateUpdated = re.search('<div class="content" itemprop="datePublished">(.+?)</div>', resp_detail, re.DOTALL|re.UNICODE)
             print('Date Updated : %s' % _dateUpdated.group(1))
+
             cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'date_updated', _dateUpdated.group(1)))
             _filesize = re.search('<div class="content" itemprop="fileSize">(.+?)</div>', resp_detail, re.DOTALL|re.UNICODE)
             if _filesize:
                 print('FileSize : %s' % _filesize.group(1))
                 cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'file_size', _filesize.group(1)))
-            _numInstalls = re.search('<div class="content" itemprop="numDownloads">(.+?)</div>', resp_detail, re.DOTALL|re.UNICODE)
-            print('Number of Installs : %s' % _numInstalls.group(1))
-            cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'number_installs', _numInstalls.group(1)))
 
+            numInstalls = re.search('<div class="content" itemprop="numDownloads">(.+?)</div>', resp_detail, re.DOTALL|re.UNICODE)
+            print('Number of Installs : %s' % numInstalls.group(1))
+            cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'number_installs', numInstalls.group(1)))
+
+
+            current_rating = re.search('<div class="current-rating" jsname=".+?" style="width: (.+?)%;"></div>', resp_detail, re.DOTALL|re.UNICODE)
+            print('Current Rating : %s' % current_rating.group(1))
+            cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'current_rating', current_rating.group(1)))
+
+            reviewer_ratings = re.search('<span class="reviewers-small" aria-label=" (.+?) ratings "></span>', resp_detail, re.DOTALL|re.UNICODE)
+            print('Total Ratings : %s' % reviewer_ratings.group(1))
+            cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'reviewer_ratings', reviewer_ratings.group(1)))
 
     except requests.exceptions.HTTPError:
         print "THERE WAS AN HTTP ERROR"
@@ -168,8 +183,8 @@ def main():
     parser = argparse.ArgumentParser(description='Scrape the Google PlayStore')
     parser.add_argument('-d','--database',help='-d <sqlite database>', required=True)
     args = parser.parse_args()
-    apps_per_query = 5
-    apps_to_get = 10
+    apps_per_query = 1
+    apps_to_get = 2
 
 
     #INITIALIZE THE DATABASE AND CREATE A CONNECTION
