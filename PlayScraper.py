@@ -2,10 +2,11 @@
 # PlayScraper
 
 import argparse
-#from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup
 import requests
 import re
 import sqlite3
+import pymongo
 import time
 import datetime
 
@@ -43,6 +44,79 @@ szCollection = ['topselling_free']
 #                'topgrossing',
 #                'movers_shakers']
 
+def process_link(link, date, app_data, Category, Collection, rank, params, cursor):
+
+    print "link = "+link
+    print "rank = "+str(rank)
+
+
+    cursor.execute("""INSERT OR IGNORE INTO 'apps' VALUES (?)""", (link,))
+
+
+    cursor.execute("""INSERT OR IGNORE INTO 'rank_data' VALUES (?,?,?,?,?)""", (link, date, Category, Collection, rank))
+    path = 'https://play.google.com/store/apps/details?id=' + link + '\n'
+    '''
+    The following is used for getting more information about each application
+    '''
+    details_url = 'https://play.google.com/store/apps/details?id=' + link
+
+    hdetails = requests.post(details_url, params=params)
+    #hLink = urllib2.urlopen(tmp)
+    print('Getting the %s' % details_url)
+    # get the response
+    resp_detail = hdetails.text
+
+    #FOR DEBUGGING, PRINT THE SOURCE OUT
+    #print resp_detail
+
+    #resp_detail = BeautifulSoup (resp_detail.decode('utf-8', 'ignore'))
+
+    _title = re.search('class="document-title" itemprop="name"> <div>(.+?)</div>', resp_detail, re.DOTALL|re.UNICODE)
+    #print('Title : %s' % _title.group(1).encode('utf-8'))
+    print('Title : %s' % _title.group(1).encode('ascii','ignore'))
+    cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'title', _title.group(1).encode('ascii','ignore')))
+
+    _author = re.search('<span itemprop="name">(.+?)</span>', resp_detail, re.DOTALL|re.UNICODE)
+    print('Author : %s' % _author.group(1))
+    cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'author', _author.group(1)))
+
+    _author_url = re.search('<a class="document-subtitle primary" href="(.+?)"', resp_detail, re.DOTALL|re.UNICODE)
+    print('Author URL : resp_detail://play.google.com%s' % _author_url.group(1))
+    cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'author_url', _author_url.group(1)))
+
+    _dateUpdated = re.search('<div class="content" itemprop="datePublished">(.+?)</div>', resp_detail, re.DOTALL|re.UNICODE)
+    print('Date Updated : %s' % _dateUpdated.group(1))
+    cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'date_updated', _dateUpdated.group(1)))
+
+    _filesize = re.search('<div class="content" itemprop="fileSize">(.+?)</div>', resp_detail, re.DOTALL|re.UNICODE)
+    if _filesize:
+        print('FileSize : %s' % _filesize.group(1))
+        cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'file_size', _filesize.group(1)))
+
+    numInstalls = re.search('<div class="content" itemprop="numDownloads">(.+?)</div>', resp_detail, re.DOTALL|re.UNICODE)
+    print('Number of Installs : %s' % numInstalls.group(1))
+    cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'number_installs', numInstalls.group(1)))
+
+
+    current_rating = re.search('<div class="current-rating" jsname=".+?" style="width: (.+?)%;"></div>', resp_detail, re.DOTALL|re.UNICODE)
+    print('Current Rating : %s' % current_rating.group(1))
+    cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'current_rating', current_rating.group(1)))
+
+    reviewer_ratings = re.search('<span class="reviewers-small" aria-label=" (.+?) ratings "></span>', resp_detail, re.DOTALL|re.UNICODE)
+    print('Total Ratings : %s' % reviewer_ratings.group(1))
+    cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'reviewer_ratings', reviewer_ratings.group(1)))
+
+
+    _full_description = re.search('<div class="show-more-content text-body" itemprop="description"(.+?)</div>', resp_detail, re.DOTALL|re.UNICODE)
+    _full_description = BeautifulSoup(_full_description.group(1), 'html.parser')
+    print('full_description : %s' % _full_description.get_text())
+    cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'full_description', _full_description.get_text()))
+
+    #DAILY REVIEW AND DOWNLOAD DATA
+    print('today\'s date : %s' % date)
+    cursor.execute("""INSERT OR IGNORE INTO 'reviews_data' VALUES (?,?,?,?)""", (link, date, reviewer_ratings.group(1), current_rating.group(1)))
+
+
 def CurlReq(database, Category, Collection, index, apps_per_query, cursor):
     # our parameters
     params = {'start':index,
@@ -77,64 +151,22 @@ def CurlReq(database, Category, Collection, index, apps_per_query, cursor):
         counter=0
 
         for link in _download_links:
+
             counter+=1
-            print "link = "+link
             print "index="+str(index)
-            print "apps_per_query="+str(apps_per_query)
             rank = index+counter
-            print "rank = "+str(rank)
-            cursor.execute("""INSERT OR IGNORE INTO 'apps' VALUES (?)""", (link,))
-            cursor.execute("""INSERT OR IGNORE INTO 'rank_data' VALUES (?,?,?,?,?)""", (link, date, Category, Collection, rank))
-            path = 'https://play.google.com/store/apps/details?id=' + link + '\n'
-            '''
-            The following is used for getting more information about each application
-            '''
-            details_url = 'https://play.google.com/store/apps/details?id=' + link
-            hdetails = requests.post(details_url, params=params)
-            #hLink = urllib2.urlopen(tmp)
-            print('Getting the %s' % details_url)
-            # get the response
-            resp_detail = hdetails.text
 
-            #FOR DEBUGGING, PRINT THE SOURCE OUT
-            #print resp_detail
+            #PROCESS THIS INDIVIDUAL APP
+            app_data = {}
+            app_data['identifier']=link
+            app_data['category']=Category
+            app_data['collection']=Collection
+            if 'rank' not in app_data:
+                app_data['rank']={}
+            app_data['rank'][date]=rank
 
-            #resp_detail = BeautifulSoup (resp_detail.decode('utf-8', 'ignore'))
+            process_link(link, date, app_data, Category, Collection, rank, params, cursor)
 
-            _title = re.search('class="document-title" itemprop="name"> <div>(.+?)</div>', resp_detail, re.DOTALL|re.UNICODE)
-            #print('Title : %s' % _title.group(1).encode('utf-8'))
-            print('Title : %s' % _title.group(1).encode('ascii','ignore'))
-            cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'title', _title.group(1).encode('ascii','ignore')))
-
-            _author = re.search('<span itemprop="name">(.+?)</span>', resp_detail, re.DOTALL|re.UNICODE)
-            print('Author : %s' % _author.group(1))
-            cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'author', _author.group(1)))
-
-            _author_url = re.search('<a class="document-subtitle primary" href="(.+?)"', resp_detail, re.DOTALL|re.UNICODE)
-            print('Author URL : resp_detail://play.google.com%s' % _author_url.group(1))
-            cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'author_url', _author_url.group(1)))
-
-            _dateUpdated = re.search('<div class="content" itemprop="datePublished">(.+?)</div>', resp_detail, re.DOTALL|re.UNICODE)
-            print('Date Updated : %s' % _dateUpdated.group(1))
-
-            cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'date_updated', _dateUpdated.group(1)))
-            _filesize = re.search('<div class="content" itemprop="fileSize">(.+?)</div>', resp_detail, re.DOTALL|re.UNICODE)
-            if _filesize:
-                print('FileSize : %s' % _filesize.group(1))
-                cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'file_size', _filesize.group(1)))
-
-            numInstalls = re.search('<div class="content" itemprop="numDownloads">(.+?)</div>', resp_detail, re.DOTALL|re.UNICODE)
-            print('Number of Installs : %s' % numInstalls.group(1))
-            cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'number_installs', numInstalls.group(1)))
-
-
-            current_rating = re.search('<div class="current-rating" jsname=".+?" style="width: (.+?)%;"></div>', resp_detail, re.DOTALL|re.UNICODE)
-            print('Current Rating : %s' % current_rating.group(1))
-            cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'current_rating', current_rating.group(1)))
-
-            reviewer_ratings = re.search('<span class="reviewers-small" aria-label=" (.+?) ratings "></span>', resp_detail, re.DOTALL|re.UNICODE)
-            print('Total Ratings : %s' % reviewer_ratings.group(1))
-            cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'reviewer_ratings', reviewer_ratings.group(1)))
 
     except requests.exceptions.HTTPError:
         print "THERE WAS AN HTTP ERROR"
@@ -143,7 +175,10 @@ def CurlReq(database, Category, Collection, index, apps_per_query, cursor):
         print "HIT THE QUIT!"
         return
 
-def initialize_database(database):
+def initialize_mongo_database(database):
+    pass
+
+def initialize_sqlite_database(database):
     conn = sqlite3.connect(database) # or use :memory: to put it in RAM
     cursor = conn.cursor()
 
@@ -175,6 +210,10 @@ def initialize_database(database):
     cursor.execute("""CREATE INDEX IF NOT EXISTS rank_data_appid_category_index ON rank_data(appid, category)""")
     cursor.execute("""CREATE INDEX IF NOT EXISTS rank_data_appid_collection_index ON rank_data(appid, collection)""")
 
+    # INFO ABOUT THE DAILY DOWNLOADS OF EACH INDIVIDUAL APP
+    cursor.execute("""CREATE TABLE IF NOT EXISTS reviews_data(appid, date, reviewer_ratings, current_rating)""")
+    cursor.execute("""CREATE UNIQUE INDEX IF NOT EXISTS reviews_data_appid_date_index ON reviews_data(appid, date)""")
+
     conn.commit()
 
     return conn
@@ -182,13 +221,26 @@ def initialize_database(database):
 def main():
     parser = argparse.ArgumentParser(description='Scrape the Google PlayStore')
     parser.add_argument('-d','--database',help='-d <sqlite database>', required=True)
+    parser.add_argument('-t','--type_database',help='-t <type of database>', required=True)
+    parser.add_argument('-g','--apps_to_get',help='-g <get this many of the apps>', required=True)
     args = parser.parse_args()
-    apps_per_query = 1
-    apps_to_get = 2
+
+    # ONLY GET 1 APP AT A TIME IF ITS LESS THAN 50
+    apps_to_get = int(args.apps_to_get)
+    if int(args.apps_to_get) < 50:
+        apps_per_query = 1
+    else:
+        apps_per_query = 50
 
 
     #INITIALIZE THE DATABASE AND CREATE A CONNECTION
-    conn = initialize_database(args.database)
+    if args.type_database == "sqlite":
+        conn = initialize_sqlite_database(args.database)
+    elif args.type_database == "mongo":
+        conn = initialize_mongo_database(args.database)
+    else:
+        print('Unknown database '+str(args.type_database))
+        return
 
     while True:
 
@@ -196,6 +248,8 @@ def main():
 
             for category in szCategories:
                 for Collection in szCollection:
+                    print args.apps_to_get
+                    print apps_per_query
                     for index in xrange(0,apps_to_get,apps_per_query):
                     #for index in xrange(0,10,1):
                         CurlReq(args.database, category, Collection, index, apps_per_query, conn.cursor())
