@@ -44,7 +44,9 @@ szCollection = ['topselling_free']
 #                'topgrossing',
 #                'movers_shakers']
 
-def process_link(link, date, app_data, Category, Collection, rank, params, cursor):
+Countries = ['us']
+
+def process_link(link, date, app_data, Category, Collection, Country, rank, params, cursor):
 
     print "link = "+link
     print "rank = "+str(rank)
@@ -73,8 +75,9 @@ def process_link(link, date, app_data, Category, Collection, rank, params, curso
 
     _title = re.search('class="document-title" itemprop="name"> <div>(.+?)</div>', resp_detail, re.DOTALL|re.UNICODE)
     #print('Title : %s' % _title.group(1).encode('utf-8'))
-    print('Title : %s' % _title.group(1).encode('ascii','ignore'))
-    cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'title', _title.group(1).encode('ascii','ignore')))
+    if _title:
+        print('Title : %s' % _title.group(1).encode('ascii','ignore'))
+        cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'title', _title.group(1).encode('ascii','ignore')))
 
     _author = re.search('<span itemprop="name">(.+?)</span>', resp_detail, re.DOTALL|re.UNICODE)
     print('Author : %s' % _author.group(1))
@@ -117,7 +120,7 @@ def process_link(link, date, app_data, Category, Collection, rank, params, curso
     cursor.execute("""INSERT OR IGNORE INTO 'reviews_data' VALUES (?,?,?,?)""", (link, date, reviewer_ratings.group(1), current_rating.group(1)))
 
 
-def CurlReq(database, Category, Collection, index, apps_per_query, cursor):
+def CurlReq(database, Category, Collection, Country, index, apps_per_query, cursor):
     # our parameters
     params = {'start':index,
               'num':apps_per_query,
@@ -128,7 +131,7 @@ def CurlReq(database, Category, Collection, index, apps_per_query, cursor):
     date = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d')
 
     # establish connection with the webpage
-    url = 'https://play.google.com/store/apps/category/' + Category + '/collection/' + Collection + '?authuser=0'
+    url = 'https://play.google.com/store/apps/category/' + Category + '/collection/' + Collection + '?authuser=0' + '&gl=' + Country
 
     # url encode the parameters
 
@@ -165,7 +168,7 @@ def CurlReq(database, Category, Collection, index, apps_per_query, cursor):
                 app_data['rank']={}
             app_data['rank'][date]=rank
 
-            process_link(link, date, app_data, Category, Collection, rank, params, cursor)
+            process_link(link, date, app_data, Category, Collection, Country, rank, params, cursor)
 
 
     except requests.exceptions.HTTPError:
@@ -248,13 +251,14 @@ def main():
 
             for category in szCategories:
                 for Collection in szCollection:
-                    print args.apps_to_get
-                    print apps_per_query
-                    for index in xrange(0,apps_to_get,apps_per_query):
-                    #for index in xrange(0,10,1):
-                        CurlReq(args.database, category, Collection, index, apps_per_query, conn.cursor())
-                    conn.commit()
-                    return
+                    for Country in Countries:
+                        print args.apps_to_get
+                        print apps_per_query
+                        for index in xrange(0,apps_to_get,apps_per_query):
+                        #for index in xrange(0,10,1):
+                            CurlReq(args.database, category, Collection, Country, index, apps_per_query, conn.cursor())
+                        conn.commit()
+                        return
 
         except KeyboardInterrupt:
             print('\nPausing...  (Hit ENTER to continue, type quit to exit.)')
