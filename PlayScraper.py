@@ -97,8 +97,9 @@ def process_link(link, date, app_data, Category, Collection, Country, rank, para
         cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'file_size', _filesize.group(1)))
 
     numInstalls = re.search('<div class="content" itemprop="numDownloads">(.+?)</div>', resp_detail, re.DOTALL|re.UNICODE)
-    print('Number of Installs : %s' % numInstalls.group(1))
-    cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'number_installs', numInstalls.group(1)))
+    if numInstalls:
+        print('Number of Installs : %s' % numInstalls.group(1))
+	cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'number_installs', numInstalls.group(1)))
 
 
     current_rating = re.search('<div class="current-rating" jsname=".+?" style="width: (.+?)%;"></div>', resp_detail, re.DOTALL|re.UNICODE)
