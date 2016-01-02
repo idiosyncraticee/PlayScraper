@@ -80,16 +80,19 @@ def process_link(link, date, app_data, Category, Collection, Country, rank, para
         cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'title', _title.group(1).encode('ascii','ignore')))
 
     _author = re.search('<span itemprop="name">(.+?)</span>', resp_detail, re.DOTALL|re.UNICODE)
-    print('Author : %s' % _author.group(1))
-    cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'author', _author.group(1)))
+    if _author:
+        print('Author : %s' % _author.group(1))
+        cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'author', _author.group(1)))
 
     _author_url = re.search('<a class="document-subtitle primary" href="(.+?)"', resp_detail, re.DOTALL|re.UNICODE)
-    print('Author URL : resp_detail://play.google.com%s' % _author_url.group(1))
-    cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'author_url', _author_url.group(1)))
+    if _author_url:
+        print('Author URL : resp_detail://play.google.com%s' % _author_url.group(1))
+        cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'author_url', _author_url.group(1)))
 
     _dateUpdated = re.search('<div class="content" itemprop="datePublished">(.+?)</div>', resp_detail, re.DOTALL|re.UNICODE)
-    print('Date Updated : %s' % _dateUpdated.group(1))
-    cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'date_updated', _dateUpdated.group(1)))
+    if _dateUpdated:
+        print('Date Updated : %s' % _dateUpdated.group(1))
+        cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'date_updated', _dateUpdated.group(1)))
 
     _filesize = re.search('<div class="content" itemprop="fileSize">(.+?)</div>', resp_detail, re.DOTALL|re.UNICODE)
     if _filesize:
@@ -97,27 +100,39 @@ def process_link(link, date, app_data, Category, Collection, Country, rank, para
         cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'file_size', _filesize.group(1)))
 
     numInstalls = re.search('<div class="content" itemprop="numDownloads">(.+?)</div>', resp_detail, re.DOTALL|re.UNICODE)
-    print('Number of Installs : %s' % numInstalls.group(1))
-    cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'number_installs', numInstalls.group(1)))
+    #OCCASIONALLY THE NUMBER OF INSTALLS MAY NOT BE LISTED
+    if numInstalls:
+        print('Number of Installs : %s' % numInstalls.group(1))
+        cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'number_installs', numInstalls.group(1)))
 
 
     current_rating = re.search('<div class="current-rating" jsname=".+?" style="width: (.+?)%;"></div>', resp_detail, re.DOTALL|re.UNICODE)
-    print('Current Rating : %s' % current_rating.group(1))
-    cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'current_rating', current_rating.group(1)))
+    if current_rating:
+        print('Current Rating : %s' % current_rating.group(1))
+        cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'current_rating', current_rating.group(1)))
 
     reviewer_ratings = re.search('<span class="reviewers-small" aria-label=" (.+?) ratings "></span>', resp_detail, re.DOTALL|re.UNICODE)
-    print('Total Ratings : %s' % reviewer_ratings.group(1))
-    cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'reviewer_ratings', reviewer_ratings.group(1)))
+    if reviewer_ratings:
+        print('Total Ratings : %s' % reviewer_ratings.group(1))
+        cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'reviewer_ratings', reviewer_ratings.group(1)))
 
 
     _full_description = re.search('<div class="show-more-content text-body" itemprop="description"(.+?)</div>', resp_detail, re.DOTALL|re.UNICODE)
-    _full_description = BeautifulSoup(_full_description.group(1), 'html.parser')
-    print('full_description : %s' % _full_description.get_text())
-    cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'full_description', _full_description.get_text()))
+    if _full_description:
+        _full_description = BeautifulSoup(_full_description.group(1), 'html.parser')
+        print('full_description : %s' % _full_description.get_text())
+        cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'full_description', _full_description.get_text()))
 
     #DAILY REVIEW AND DOWNLOAD DATA
     print('today\'s date : %s' % date)
-    cursor.execute("""INSERT OR IGNORE INTO 'reviews_data' VALUES (?,?,?,?)""", (link, date, reviewer_ratings.group(1), current_rating.group(1)))
+    if (current_rating is not None) & (reviewer_ratings is not None):
+        cursor.execute("""INSERT OR IGNORE INTO 'reviews_data' VALUES (?,?,?,?)""", (link, date, reviewer_ratings.group(1), current_rating.group(1)))
+    elif current_rating is not None:
+        cursor.execute("""INSERT OR IGNORE INTO 'reviews_data' VALUES (?,?,?,?)""", (link, date, '', current_rating.group(1)))
+    elif reviewer_ratings is not None:
+        cursor.execute("""INSERT OR IGNORE INTO 'reviews_data' VALUES (?,?,?,?)""", (link, date, reviewer_ratings.group(1), ''))
+    else:
+        cursor.execute("""INSERT OR IGNORE INTO 'reviews_data' VALUES (?,?,?,?)""", (link, date, '', ''))
 
 
 def CurlReq(database, Category, Collection, Country, index, apps_per_query, cursor):
