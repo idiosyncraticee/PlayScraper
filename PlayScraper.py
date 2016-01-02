@@ -10,6 +10,11 @@ import pymongo
 import time
 import datetime
 
+#THIS IS TO GET IT TO WORK ON THE CRONJOB
+import sys
+import codecs
+sys.stdout = codecs.getwriter('utf8')(sys.stdout)
+
 # szCategories = ['BOOKS_AND_REFERENCE','BUSINESS',
 #                 'EDUCATION','ENTERTAINMENT',
 #                 'FINANCE','HEALTH_AND_FITNESS',
