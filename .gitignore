@@ -4,3 +4,7 @@ playstore.db
 credentials.py
 
 .idea/vcs.xml
+
+.ipynb_checkpoints/PlayChart-checkpoint.ipynb
+
+playstoreX.db

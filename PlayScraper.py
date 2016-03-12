@@ -42,8 +42,8 @@ sys.stdout = codecs.getwriter('utf8')(sys.stdout)
 
 szCategories = ['FINANCE']
 
-szCollection = ['topselling_free']
-#                'topselling_paid',
+szCollection = ['topselling_free',
+                'topselling_paid']
 #                'topselling_new_free',
 #                'topselling_new_paid',
 #                'topgrossing',

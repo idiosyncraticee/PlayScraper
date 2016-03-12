@@ -1,5 +1,9 @@
 import sqlite3
 import json
+import smtplib
+from email.MIMEMultipart import MIMEMultipart
+from email.MIMEText import MIMEText
+from email.MIMEImage import MIMEImage
 
 class PlayData:
 
@@ -11,6 +15,21 @@ class PlayData:
         self._initialize_database()
 
         pass
+
+    def _get_credentials():
+        creds = {}
+        creds['gmail_password'] = str()
+
+        # If the file credentials.py exists, then grab values from it.
+        # Values: "twitter_consumer_key," "twitter_consumer_secret," "alchemy_apikey"
+        # Otherwise, the values are entered by the user
+        try:
+            import credentials
+            creds['gmail_password'] = credentials.gmail_password
+        except:
+            print "No credentials.py found"
+
+        return creds
 
     def _getUrl(self):
         raise NotImplementedError
@@ -36,6 +55,47 @@ class PlayData:
         self.cursor.execute(sql, (appid, category, collection))
         return json.dumps(self.cursor.fetchall())
 
+    def getAllRanks(self, category, collection):
+        sql = "SELECT appid,date,rank FROM rank_data WHERE category=? AND collection=? ORDER BY date ASC"
+        self.cursor.execute(sql, (category, collection))
+        return json.dumps(self.cursor.fetchall())
+
+    def sendEmail(self, appid):
+        COMMASPACE = ', '
+
+        # Create the container (outer) email message.
+        msg = MIMEMultipart()
+        msg['Subject'] = 'ASO Date for '+appid
+        # me == the sender's email address
+        # family = the list of all recipients' email addresses
+        msg['From'] = "oxbowsoft@gmail.com"
+        to = ['chris.schuermyer@gmail.com']
+        msg['To'] = COMMASPACE.join(to)
+        msg.preamble = 'ASO Date for '+appid
+
+        # Assume we know that the image files are all in PNG format
+        file = appid+'.png'
+
+        # Open the files in binary mode.  Let the MIMEImage class automatically
+        # guess the specific image type.
+        print file
+        fp = open(file, 'rb')
+        img = MIMEImage(fp.read())
+        fp.close()
+        msg.attach(img)
+        try:
+            server = smtplib.SMTP("smtp.gmail.com", 587)
+            #server.set_debuglevel(1)
+            server.ehlo()
+            server.starttls()
+            credentials = self._get_credentials()
+            gmail_pwd=credentials['gmail_password']
+            server.login(msg['From'], gmail_pwd)
+            server.sendmail(msg['From'], to, msg.as_string())
+            server.close()
+            print 'successfully sent the mail'
+        except:
+            print "failed to send mail"
 
     def _initialize_database(self):
         conn = sqlite3.connect(self.database) # or use :memory: to put it in RAM
