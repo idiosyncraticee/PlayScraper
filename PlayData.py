@@ -55,9 +55,68 @@ class PlayData:
         self.cursor.execute(sql, (appid, category, collection))
         return json.dumps(self.cursor.fetchall())
 
+    def getApps(self, query):
+        sql = "SELECT app_data.appid,app_data.value FROM app_data WHERE key='title' and value like ? ORDER BY value ASC"
+        #print query
+        #print sql
+        self.cursor.execute(sql, ['%'+query+'%'])
+        fields = map(lambda x:x[0], self.cursor.description)
+        result = [dict(zip(fields,row)) for row in self.cursor.fetchall()]
+
+        return json.dumps(result)
+
+    def getAppDetails(self, appid, category, collection):
+        sql = "SELECT value,key FROM app_data WHERE appid=?"
+        #print query
+        #print sql
+        self.cursor.execute(sql, [appid])
+        result = {}
+        result['appid']=appid
+        for row in self.cursor.fetchall():
+            result[row[1]]=row[0]
+
+        sql = "SELECT date,rank FROM rank_data WHERE appid=? AND category=? AND collection=? ORDER BY date ASC"
+        self.cursor.execute(sql, (appid, category, collection))
+        result['ranking']={}
+        for row in self.cursor.fetchall():
+            result['ranking'][row[0]]=row[1]
+
+        return json.dumps(result)
+
     def getAllRanks(self, category, collection):
         sql = "SELECT appid,date,rank FROM rank_data WHERE category=? AND collection=? ORDER BY date ASC"
         self.cursor.execute(sql, (category, collection))
+        return json.dumps(self.cursor.fetchall())
+
+    def getAllReviews(self, category, collection):
+
+        #sql = "SELECT DISTINCT reviews_data.appid,reviews_data.date,reviews_data.reviewer_ratings FROM reviews_data,rank_data WHERE rank_data.appid=reviews_data.appid AND rank_data.category='FINANCE' AND rank_data.collection='topselling_free' ORDER BY reviews_data.date ASC"
+        sql = "SELECT DISTINCT reviews_data.appid,reviews_data.date,reviews_data.reviewer_ratings FROM reviews_data,rank_data WHERE rank_data.appid=reviews_data.appid AND rank_data.category=? AND rank_data.collection=? ORDER BY reviews_data.date ASC"
+
+        self.cursor.execute(sql, (category, collection))
+        return json.dumps(self.cursor.fetchall())
+
+    def getAppReviews(self, apps, category, collection):
+
+        comma = "','"
+        apps_csv = comma.join(apps)
+        apps_csv = "'"+apps_csv+"'"
+        #print apps_csv
+
+        sql = "SELECT reviews_data.appid,reviews_data.date,reviews_data.reviewer_ratings FROM reviews_data,rank_data WHERE rank_data.appid IN ( com.oxbowsoft.debtplanner,com.levelmoney.mobile ) AND rank_data.appid=reviews_data.appid AND rank_data.category='FINANCE' AND rank_data.collection='topselling_free' ORDER BY reviews_data.date ASC"
+        #sql = "SELECT reviews_data.appid,reviews_data.date,reviews_data.reviewer_ratings FROM reviews_data,rank_data \
+        #    WHERE rank_data.appid IN ( ? ) AND rank_data.appid=reviews_data.appid AND rank_data.category=? AND rank_data.collection=? \
+        #    ORDER BY reviews_data.date ASC"
+
+        self.cursor.execute(sql, (apps_csv, category, collection))
+
+        return json.dumps(self.cursor.fetchall())
+
+    def getDailyInfo(self, appid, category, collection):
+        sql = "select rank.date,rank.rank,rev.reviewer_ratings,rev.current_rating \
+        from rank_data as rank,reviews_data as rev \
+        where rank.appid=? and rank.appid=rev.appid and rank.date=rev.date AND rank.category=? AND rank.collection=? ORDER BY rank.date ASC"
+        self.cursor.execute(sql, (appid, category, collection))
         return json.dumps(self.cursor.fetchall())
 
     def sendEmail(self, appid):
@@ -68,7 +127,8 @@ class PlayData:
         msg['Subject'] = 'ASO Date for '+appid
         # me == the sender's email address
         # family = the list of all recipients' email addresses
-        msg['From'] = "oxbowsoft@gmail.com"
+        #msg['From'] = "oxbowsoft@gmail.com"
+        msg['From'] = "chris.schuermyer@gmail.com"
         to = ['chris.schuermyer@gmail.com']
         msg['To'] = COMMASPACE.join(to)
         msg.preamble = 'ASO Date for '+appid

@@ -12,21 +12,29 @@ $stmt = $pdo->prepare('SELECT date,rank FROM rank_data WHERE appid=:appid AND ca
 //$stmt = $pdo->prepare('SELECT date,rank FROM rank_data WHERE appid = :appid');
 $stmt->execute(array('appid' => $appid, 'category' => $category, 'collection' => $collection));
 
+
+
 $datapie = array();
+$result = [];
 
-//$result->setFetchMode(PDO::FETCH_ASSOC);
-
-foreach ($stmt as $row) {
+$stmt->setFetchMode(PDO::FETCH_ASSOC);
+$result['results'] = $stmt->fetchall();
+//print_r($result);
+//while ($row = $stmt->fetchall()) {
+//foreach ($stmt as $row) {
     // do something with $row
-    extract($row);
+//    extract($row);
 
-    $datapie[] = array($date, $rank);
-}
+//    $datapie[] = array($date, $rank);
+//}
 
 
+//http://localhost/workspace/cgi-bin/playscraper/playchart.php?appid=com.twoergo.foxbusiness&category=FINANCE&collection=topselling_free
+//$data = json_encode($datapie);
 
-$data = json_encode($datapie);
+$data = json_encode($result);
 header('Content-type: application/json');
+header('Access-Control-Allow-Origin: *');
 //echo "Content-type: application/json\n";
 //echo "\n";
 echo $data;

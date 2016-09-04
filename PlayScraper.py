@@ -44,6 +44,7 @@ szCategories = ['FINANCE']
 
 szCollection = ['topselling_free',
                 'topselling_paid']
+
 #                'topselling_new_free',
 #                'topselling_new_paid',
 #                'topgrossing',
@@ -54,7 +55,7 @@ Countries = ['us']
 def process_link(link, date, app_data, Category, Collection, Country, rank, params, cursor):
 
     print "link = "+link
-    print "rank = "+str(rank)
+    print "rank ("+str(Collection)+")= "+str(rank)
 
 
     cursor.execute("""INSERT OR IGNORE INTO 'apps' VALUES (?)""", (link,))
@@ -270,15 +271,16 @@ def main():
         try:
 
             for category in szCategories:
-                for Collection in szCollection:
+                for collection in szCollection:
+                    print("Hit up the collection %s" % collection)
                     for Country in Countries:
                         print args.apps_to_get
                         print apps_per_query
                         for index in xrange(0,apps_to_get,apps_per_query):
                         #for index in xrange(0,10,1):
-                            CurlReq(args.database, category, Collection, Country, index, apps_per_query, conn.cursor())
+                            CurlReq(args.database, category, collection, Country, index, apps_per_query, conn.cursor())
                         conn.commit()
-                        return
+            return
 
         except KeyboardInterrupt:
             print('\nPausing...  (Hit ENTER to continue, type quit to exit.)')
