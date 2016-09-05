@@ -42,6 +42,12 @@ class PlayData:
             raise Exception("there isn't a title with id %s" % appid)
         return title
 
+    def getAllTitles(self):
+        sql = "SELECT appid,value FROM app_data WHERE key='title'"
+        self.cursor.execute(sql,[])
+        return json.dumps(self.cursor.fetchall())
+
+
     def getRankLatest(self, appid, category, collection):
         sql = "SELECT date,rank FROM rank_data WHERE appid=? AND category=? AND collection=? ORDER BY date DESC"
         self.cursor.execute(sql, (appid, category, collection))
@@ -85,6 +91,14 @@ class PlayData:
 
     def getAllRanks(self, category, collection):
         sql = "SELECT appid,date,rank FROM rank_data WHERE category=? AND collection=? ORDER BY date ASC"
+        self.cursor.execute(sql, (category, collection))
+        return json.dumps(self.cursor.fetchall())
+
+    def getAllReviewsVerbose(self, category, collection):
+
+        #sql = "SELECT DISTINCT reviews_data.appid,reviews_data.date,reviews_data.reviewer_ratings FROM reviews_data,rank_data WHERE rank_data.appid=reviews_data.appid AND rank_data.category='FINANCE' AND rank_data.collection='topselling_free' ORDER BY reviews_data.date ASC"
+        sql = "SELECT DISTINCT reviews_data.appid,reviews_data.date,reviews_data.reviewer_ratings FROM reviews_data,rank_data WHERE rank_data.appid=reviews_data.appid AND rank_data.category=? AND rank_data.collection=? ORDER BY reviews_data.date ASC"
+
         self.cursor.execute(sql, (category, collection))
         return json.dumps(self.cursor.fetchall())
 

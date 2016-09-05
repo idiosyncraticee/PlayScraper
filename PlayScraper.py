@@ -42,8 +42,8 @@ sys.stdout = codecs.getwriter('utf8')(sys.stdout)
 
 szCategories = ['FINANCE']
 
-szCollection = ['topselling_free',
-                'topselling_paid']
+szCollection = ['topselling_paid',
+                'topselling_free']
 
 #                'topselling_new_free',
 #                'topselling_new_paid',
@@ -80,6 +80,12 @@ def process_link(link, date, app_data, Category, Collection, Country, rank, para
     #resp_detail = BeautifulSoup (resp_detail.decode('utf-8', 'ignore'))
 
     _title = re.search('class="document-title" itemprop="name"> <div>(.+?)</div>', resp_detail, re.DOTALL|re.UNICODE)
+    #print('Title : %s' % _title.group(1).encode('utf-8'))
+    if _title:
+        print('Title : %s' % _title.group(1).encode('ascii','ignore'))
+        cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'title', _title.group(1).encode('ascii','ignore')))
+
+    _title = re.search('class="document-title" itemprop="name"> <div class="id-app-title" tabindex="0">(.+?)</div>', resp_detail, re.DOTALL|re.UNICODE)
     #print('Title : %s' % _title.group(1).encode('utf-8'))
     if _title:
         print('Title : %s' % _title.group(1).encode('ascii','ignore'))
@@ -126,7 +132,7 @@ def process_link(link, date, app_data, Category, Collection, Country, rank, para
     _full_description = re.search('<div class="show-more-content text-body" itemprop="description"(.+?)</div>', resp_detail, re.DOTALL|re.UNICODE)
     if _full_description:
         _full_description = BeautifulSoup(_full_description.group(1), 'html.parser')
-        print('full_description : %s' % _full_description.get_text())
+        print('Full Description : %s' % _full_description.get_text())
         cursor.execute("""INSERT OR IGNORE INTO 'app_data' VALUES (?,?,?)""", (link, 'full_description', _full_description.get_text()))
 
     #DAILY REVIEW AND DOWNLOAD DATA
@@ -292,6 +298,8 @@ def main():
             except KeyboardInterrupt:
                 print('Resuming...')
                 continue
+
+
 
 if __name__ == "__main__":
     main()
