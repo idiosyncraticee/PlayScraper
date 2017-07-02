@@ -40,7 +40,7 @@ sys.stdout = codecs.getwriter('utf8')(sys.stdout)
 #                 'FAMILY_EDUCATION','FAMILY_MUSICVIDEO',
 #                 'FAMILY_PRETEND']
 
-szCategories = ['FINANCE']
+szCategories = ['FINANCE', 'TRANSPORTATION']
 
 szCollection = ['topselling_paid',
                 'topselling_free']

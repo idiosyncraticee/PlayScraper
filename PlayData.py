@@ -4,6 +4,7 @@ import smtplib
 from email.MIMEMultipart import MIMEMultipart
 from email.MIMEText import MIMEText
 from email.MIMEImage import MIMEImage
+import pandas as pd
 
 class PlayData:
 
@@ -47,11 +48,18 @@ class PlayData:
         self.cursor.execute(sql,[])
         return json.dumps(self.cursor.fetchall())
 
+    def getAllFullDescriptions(self):
+        sql = "SELECT appid,value FROM app_data WHERE key='full_description'"
+        self.cursor.execute(sql,[])
+        return json.dumps(self.cursor.fetchall())
 
     def getRankLatest(self, appid, category, collection):
         sql = "SELECT date,rank FROM rank_data WHERE appid=? AND category=? AND collection=? ORDER BY date DESC"
         self.cursor.execute(sql, (appid, category, collection))
-        (date,rank) = self.cursor.fetchone()  # or use fetchone()
+        try:
+            (date,rank) = self.cursor.fetchone()  # or use fetchone()
+        except:
+            raise Exception("there is no data for %s with category %s and collection %s" % (appid,category,collection))
         if rank == None:
             raise Exception("there isn't a rank with id %s" % appid)
         return (date,rank)
@@ -94,6 +102,20 @@ class PlayData:
         self.cursor.execute(sql, (category, collection))
         return json.dumps(self.cursor.fetchall())
 
+    def getAllRankingData(self, category, collection):
+        sql = "SELECT appid,date,rank FROM rank_data WHERE category=? AND collection=? ORDER BY date ASC"
+        self.cursor.execute(sql, (category, collection))
+
+        all_ranking_data = pd.DataFrame(self.cursor.fetchall())
+        all_ranking_data = all_ranking_data.rename(columns = {1:'Date'})
+        all_ranking_data['Date'] = all_ranking_data['Date'].apply(pd.to_datetime)
+        #all_ranking_data = all_ranking_data.set_index('Date')
+        all_ranking_data = all_ranking_data.rename(columns = {0:'AppId'})
+        all_ranking_data = all_ranking_data.rename(columns = {2:'Rank'})
+        all_ranking_data=all_ranking_data.pivot(index='Date', columns='AppId', values='Rank')
+
+        return all_ranking_data
+
     def getAllReviewsVerbose(self, category, collection):
 
         #sql = "SELECT DISTINCT reviews_data.appid,reviews_data.date,reviews_data.reviewer_ratings FROM reviews_data,rank_data WHERE rank_data.appid=reviews_data.appid AND rank_data.category='FINANCE' AND rank_data.collection='topselling_free' ORDER BY reviews_data.date ASC"
@@ -102,6 +124,7 @@ class PlayData:
         self.cursor.execute(sql, (category, collection))
         return json.dumps(self.cursor.fetchall())
 
+
     def getAllReviews(self, category, collection):
 
         #sql = "SELECT DISTINCT reviews_data.appid,reviews_data.date,reviews_data.reviewer_ratings FROM reviews_data,rank_data WHERE rank_data.appid=reviews_data.appid AND rank_data.category='FINANCE' AND rank_data.collection='topselling_free' ORDER BY reviews_data.date ASC"
@@ -109,6 +132,31 @@ class PlayData:
 
         self.cursor.execute(sql, (category, collection))
         return json.dumps(self.cursor.fetchall())
+
+    def getAllReviewsData(self, category, collection, limit, cutoff):
+
+        #sql = "SELECT DISTINCT reviews_data.appid,reviews_data.date,reviews_data.reviewer_ratings FROM reviews_data,rank_data WHERE rank_data.appid=reviews_data.appid AND rank_data.category='FINANCE' AND rank_data.collection='topselling_free' ORDER BY reviews_data.date ASC"
+        sql = "SELECT DISTINCT reviews_data.appid,reviews_data.date,reviews_data.reviewer_ratings FROM reviews_data,rank_data WHERE rank_data.appid=reviews_data.appid AND rank_data.category=? AND rank_data.collection=? AND reviews_data.reviewer_ratings>=? ORDER BY reviews_data.date ASC LIMIT ? "
+
+        self.cursor.execute(sql, (category, collection, cutoff, limit))
+
+        all_reviews_data = pd.DataFrame(self.cursor.fetchall())
+        all_reviews_data = all_reviews_data.rename(columns = {1:'Date'})
+        all_reviews_data['Date'] = all_reviews_data['Date'].apply(pd.to_datetime)
+
+        all_reviews_data = all_reviews_data.rename(columns = {0:'AppId'})
+        #all_reviews_data = all_reviews_data.set_index('AppId')
+        all_reviews_data = all_reviews_data.rename(columns = {2:'Reviews'})
+
+
+        all_reviews_data['Reviews'] = all_reviews_data['Reviews'].str.replace(',', '')
+        all_reviews_data['Reviews'].fillna(0,inplace=True)
+        all_reviews_data['Reviews'] =  all_reviews_data['Reviews'].replace('',0)
+        #print all_reviews_data.head()
+        #all_reviews_data=all_reviews_data.pivot(index='Date', columns='AppId', values='Reviews')
+        all_reviews_data.sort_values(by='Reviews', ascending=False).drop_duplicates(subset='AppId')
+
+        return all_reviews_data
 
     def getAppReviews(self, apps, category, collection):
 
@@ -170,6 +218,7 @@ class PlayData:
             print 'successfully sent the mail'
         except:
             print "failed to send mail"
+
 
     def _initialize_database(self):
         conn = sqlite3.connect(self.database) # or use :memory: to put it in RAM

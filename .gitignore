@@ -2,9 +2,14 @@
 *.pyc
 playstore.db
 credentials.py
+playstore.db-journal
 
 .idea/vcs.xml
 
 .ipynb_checkpoints/PlayChart-checkpoint.ipynb
 
 playstoreX.db
+
+.idea/misc.xml
+
+.idea/PlayScraper.iml
