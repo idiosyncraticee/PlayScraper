@@ -40,7 +40,7 @@ sys.stdout = codecs.getwriter('utf8')(sys.stdout)
 #                 'FAMILY_EDUCATION','FAMILY_MUSICVIDEO',
 #                 'FAMILY_PRETEND']
 
-szCategories = ['FINANCE', 'TRANSPORTATION']
+szCategories = ['FINANCE', 'AUTO_AND_VEHICLES']
 
 szCollection = ['topselling_paid',
                 'topselling_free']
@@ -280,8 +280,7 @@ def main():
                 for collection in szCollection:
                     print("Hit up the collection %s" % collection)
                     for Country in Countries:
-                        print args.apps_to_get
-                        print apps_per_query
+                        print("Apps to grab = %s using a query size of %s" % (args.apps_to_get, apps_per_query))
                         for index in xrange(0,apps_to_get,apps_per_query):
                         #for index in xrange(0,10,1):
                             CurlReq(args.database, category, collection, Country, index, apps_per_query, conn.cursor())

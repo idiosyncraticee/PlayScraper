@@ -133,7 +133,7 @@ class PlayData:
         self.cursor.execute(sql, (category, collection))
         return json.dumps(self.cursor.fetchall())
 
-    def getAllReviewsData(self, category, collection, limit, cutoff):
+    def getAllReviewsData(self, category, collection, cutoff, limit):
 
         #sql = "SELECT DISTINCT reviews_data.appid,reviews_data.date,reviews_data.reviewer_ratings FROM reviews_data,rank_data WHERE rank_data.appid=reviews_data.appid AND rank_data.category='FINANCE' AND rank_data.collection='topselling_free' ORDER BY reviews_data.date ASC"
         sql = "SELECT DISTINCT reviews_data.appid,reviews_data.date,reviews_data.reviewer_ratings FROM reviews_data,rank_data WHERE rank_data.appid=reviews_data.appid AND rank_data.category=? AND rank_data.collection=? AND reviews_data.reviewer_ratings>=? ORDER BY reviews_data.date ASC LIMIT ? "
@@ -151,12 +151,17 @@ class PlayData:
 
         all_reviews_data['Reviews'] = all_reviews_data['Reviews'].str.replace(',', '')
         all_reviews_data['Reviews'].fillna(0,inplace=True)
-        all_reviews_data['Reviews'] =  all_reviews_data['Reviews'].replace('',0)
+        all_reviews_data['Reviews'] = all_reviews_data['Reviews'].replace('',0)
+        all_reviews_data['Reviews'] = all_reviews_data['Reviews'].convert_objects(convert_numeric=True)
+        
         #print all_reviews_data.head()
         #all_reviews_data=all_reviews_data.pivot(index='Date', columns='AppId', values='Reviews')
         all_reviews_data.sort_values(by='Reviews', ascending=False).drop_duplicates(subset='AppId')
 
         return all_reviews_data
+
+    def getReviewsDiff(self):
+        pass
 
     def getAppReviews(self, apps, category, collection):
 
